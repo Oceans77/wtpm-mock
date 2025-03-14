@@ -1,4 +1,6 @@
+// src/store/authSlice.js - add vote clearing on logout
 import { createSlice } from '@reduxjs/toolkit';
+import { clearVotes } from './votesSlice'; // Import the action
 
 const initialState = {
   user: null,
@@ -33,4 +35,13 @@ const authSlice = createSlice({
 });
 
 export const { setUser, setLoading, setError, logout } = authSlice.actions;
+
+// Enhanced logout thunk that also clears votes
+export const logoutUser = () => (dispatch) => {
+  // Clear the user's votes when they log out
+  dispatch(clearVotes());
+  // Then log them out
+  dispatch(logout());
+};
+
 export default authSlice.reducer;

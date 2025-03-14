@@ -53,17 +53,17 @@ const VerificationPage = () => {
   
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h1 className="text-2xl font-bold text-blue-600 mb-4">Verify Your Identity</h1>
-        <p className="text-gray-600 mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors">
+        <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-4">Verify Your Identity</h1>
+        <p className="text-gray-600 dark:text-gray-300 mb-6">
           Verification is required to ensure platform integrity and helps us maintain a trustworthy community.
         </p>
         
         <div className="mb-6">
-          <div className="h-2 w-full bg-gray-200 rounded-full">
-            <div className="h-2 w-1/4 bg-blue-600 rounded-full"></div>
+          <div className="h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full">
+            <div className="h-2 w-1/4 bg-blue-600 dark:bg-blue-500 rounded-full"></div>
           </div>
-          <p className="text-sm text-gray-500 mt-1">Step 1 of 4: Choose verification method</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Step 1 of 4: Choose verification method</p>
         </div>
         
         <form onSubmit={handleSubmit}>
@@ -71,25 +71,25 @@ const VerificationPage = () => {
             {VerificationTypes.map(type => (
               <div
                 key={type.id}
-                className={`border-2 rounded-lg p-4 cursor-pointer ${
+                className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
                   selectedType === type.id
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                 }`}
                 onClick={() => setSelectedType(type.id)}
               >
                 <div className="flex items-start">
                   <div className="text-2xl mr-3">{type.icon}</div>
                   <div>
-                    <h3 className="font-bold">{type.title}</h3>
-                    <p className="text-sm text-gray-600">{type.description}</p>
+                    <h3 className="font-bold text-gray-900 dark:text-white">{type.title}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">{type.description}</p>
                   </div>
                   <div className="ml-auto">
-                    <div className={`w-5 h-5 rounded-full border ${
+                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${
                       selectedType === type.id
-                        ? 'border-blue-500 bg-blue-500'
-                        : 'border-gray-300'
-                    } flex items-center justify-center`}>
+                        ? 'border-blue-500 bg-blue-500 dark:border-blue-400 dark:bg-blue-400'
+                        : 'border-gray-300 dark:border-gray-600'
+                    }`}>
                       {selectedType === type.id && (
                         <div className="w-2 h-2 rounded-full bg-white"></div>
                       )}
@@ -100,7 +100,7 @@ const VerificationPage = () => {
             ))}
           </div>
           
-          <div className="bg-blue-50 p-4 rounded-lg mb-6">
+          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg mb-6">
             <div className="flex items-start">
               <div className="flex-shrink-0">
                 <svg className="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -108,8 +108,8 @@ const VerificationPage = () => {
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-blue-800">Your Privacy Is Important</h3>
-                <div className="mt-1 text-sm text-blue-700">
+                <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300">Your Privacy Is Important</h3>
+                <div className="mt-1 text-sm text-blue-700 dark:text-blue-400">
                   <p>All verification documents are encrypted and only used for identity verification purposes.</p>
                 </div>
               </div>
@@ -119,14 +119,14 @@ const VerificationPage = () => {
           <div className="flex justify-between">
             <Link
               to="/profile"
-              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               Cancel
             </Link>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300"
+              className="px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-blue-300 dark:disabled:bg-blue-900 transition-colors"
             >
               {isSubmitting ? 'Processing...' : 'Continue'}
             </button>

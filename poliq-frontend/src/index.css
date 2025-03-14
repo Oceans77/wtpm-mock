@@ -1,3 +1,220 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Page transitions */
+.page-transition-enter {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms, transform 300ms;
+}
+
+.page-transition-exit {
+  opacity: 1;
+}
+
+.page-transition-exit-active {
+  opacity: 0;
+  transition: opacity 300ms;
+}
+
+/* Form field focus animations */
+@keyframes input-focus-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.25);
+  }
+}
+
+.animate-focus-ring:focus {
+  animation: input-focus-ring 0.3s ease-out;
+}
+
+.dark .animate-focus-ring:focus {
+  animation: input-focus-ring-dark 0.3s ease-out;
+}
+
+@keyframes input-focus-ring-dark {
+  0% {
+    box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.25);
+  }
+}
+
+/* Toast animations */
+@keyframes toast-slide-in {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-slide-out {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.toast-enter {
+  animation: toast-slide-in 0.3s ease-out forwards;
+}
+
+.toast-exit {
+  animation: toast-slide-out 0.3s ease-out forwards;
+}
+
+/* Vote count animation */
+@keyframes vote-count-pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+    color: #3B82F6;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.vote-count-change {
+  animation: vote-count-pulse 0.4s ease-out;
+}
+
+/* Navigation hover effect */
+.nav-link {
+  position: relative;
+}
+
+.nav-link::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 2px;
+  bottom: 0;
+  left: 0;
+  background-color: #3B82F6;
+  transition: width 0.3s ease;
+}
+
+.dark .nav-link::after {
+  background-color: #60A5FA;
+}
+
+.nav-link:hover::after {
+  width: 100%;
+}
+
+/* Card appear animation */
+@keyframes card-appear {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out;
+}
+
+/* Modified tooltip styles */
+.tooltip-visible .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Delay tooltip appearance */
+.transition-delay-tooltip {
+  transition: opacity 0.3s ease 0.5s, transform 0.3s ease 0.5s, visibility 0s linear 0.5s;
+}
+
+/* Remove any existing card appear animation that might be causing issues */
+.animate-card-appear {
+  animation: card-appear 0.4s ease-out forwards;
+  animation-delay: 0.1s; /* Small delay to ensure the page is ready */
+}
+
+.animate-card-appear {
+  animation: card-appear 0.5s ease-out forwards;
+}
+
+/* Tooltip animation */
+.tooltip {
+  position: relative;
+}
+
+.tooltip-text {
+  visibility: hidden;
+  position: absolute;
+  z-index: 100;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background-color: #1F2937;
+  color: white;
+  text-align: center;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+.tooltip-text::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #1F2937 transparent transparent transparent;
+}
+
+.dark .tooltip-text {
+  background-color: #374151;
+}
+
+.dark .tooltip-text::after {
+  border-color: #374151 transparent transparent transparent;
+}
+
+.tooltip:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}

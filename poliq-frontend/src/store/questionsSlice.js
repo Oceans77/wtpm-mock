@@ -1,3 +1,4 @@
+// src/store/questionsSlice.js
 import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
@@ -42,9 +43,28 @@ const questionsSlice = createSlice({
     setError: (state, action) => {
       state.error = action.payload;
       state.isLoading = false;
+    },
+    // New reducer to update a question's vote count
+    updateQuestionVotes: (state, action) => {
+      const { questionId, newVoteCount } = action.payload;
+      const question = state.questions.find(q => q.id === questionId);
+      if (question) {
+        question.votes = newVoteCount;
+      }
+    },
+    // Add a new question
+    addQuestion: (state, action) => {
+      state.questions.unshift(action.payload);
     }
   }
 });
 
-export const { setQuestions, setLoading, setError } = questionsSlice.actions;
+export const { 
+  setQuestions, 
+  setLoading, 
+  setError, 
+  updateQuestionVotes,
+  addQuestion
+} = questionsSlice.actions;
+
 export default questionsSlice.reducer;
