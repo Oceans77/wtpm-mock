@@ -1,3 +1,4 @@
+// src/api/auth/auth.controller.ts
 import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -35,6 +36,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       password: hashedPassword,
       username,
       displayName,
+      role: 'user', // Default role for new users
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -44,7 +46,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
 
     // Create JWT token
     const token = jwt.sign(
-      { id: user.id },
+      { id: user.id, role: user.role }, // Include role in token
       config.jwt.secret,
       { expiresIn: config.jwt.expiresIn }
     );
@@ -58,6 +60,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
         username: user.username,
         displayName: user.displayName,
         verificationStatus: user.verificationStatus,
+        role: user.role, // Include role in response
       },
     });
   } catch (error) {
@@ -92,7 +95,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 
     // Create JWT token
     const token = jwt.sign(
-      { id: user.id },
+      { id: user.id, role: user.role }, // Include role in token
       config.jwt.secret,
       { expiresIn: config.jwt.expiresIn }
     );
@@ -106,6 +109,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
         username: user.username,
         displayName: user.displayName,
         verificationStatus: user.verificationStatus,
+        role: user.role, // Include role in response
       },
     });
   } catch (error) {
@@ -137,6 +141,7 @@ export const getMe = async (req: Request, res: Response, next: NextFunction) => 
       username: user.username,
       displayName: user.displayName,
       verificationStatus: user.verificationStatus,
+      role: user.role, // Include role in response
     });
   } catch (error) {
     logger.error('Error in getMe controller:', error);

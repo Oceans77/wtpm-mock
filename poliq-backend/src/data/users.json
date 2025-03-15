@@ -1,0 +1,15 @@
+[
+  {
+    "id": "386629b5-7e7e-470d-9766-f0f040daf84f",
+    "email": "admin@poliq.com",
+    "username": "admin",
+    "displayName": "Admin User",
+    "password": "$2b$10$//PvjEDOwg9BUFv3MNMBruc6zFhxju/UfLYh.oR11it6Ol.MZqb8K",
+    "role": "admin",
+    "verificationStatus": "verified",
+    "isActive": true,
+    "accountType": "admin",
+    "createdAt": "2025-03-15T02:55:12.360Z",
+    "updatedAt": "2025-03-15T02:55:12.360Z"
+  }
+]

@@ -18,7 +18,7 @@ const VoteButton = ({ questionId, currentVotes }) => {
   // Local state for optimistic UI updates
   const [isHovered, setIsHovered] = useState(false);
   
-  const handleVote = async () => {
+  const handleVote = () => {
     // Check if user is authenticated
     if (!isAuthenticated) {
       toast.error('You must be logged in to vote');
@@ -28,36 +28,35 @@ const VoteButton = ({ questionId, currentVotes }) => {
     // If already voting, do nothing
     if (isVoting) return;
     
-    try {
-      let result;
-      
-      // If user has already voted, unvote
-      if (hasVoted) {
-        result = await dispatch(unvote(questionId)).unwrap();
-      } else {
-        // Otherwise cast a vote
-        result = await dispatch(castVote(questionId, 'upvote')).unwrap();
-      }
-      
-      // If successful, update the question's vote count
-      if (result.success) {
-        dispatch(updateQuestionVotes({
-          questionId,
-          newVoteCount: result.newVoteCount
-        }));
-        
-        // Show toast feedback
-        if (hasVoted) {
+    // Simplified approach without using unwrap() which might be causing issues
+    if (hasVoted) {
+      // Remove the vote
+      dispatch(unvote(questionId))
+        .then(() => {
+          // Update UI optimistically
+          dispatch(updateQuestionVotes({
+            questionId,
+            newVoteCount: currentVotes - 1
+          }));
           toast.success('Vote removed');
-        } else {
+        })
+        .catch(() => {
+          toast.error('Failed to remove vote');
+        });
+    } else {
+      // Cast a new vote
+      dispatch(castVote({ questionId, voteType: 'upvote' }))
+        .then(() => {
+          // Update UI optimistically
+          dispatch(updateQuestionVotes({
+            questionId,
+            newVoteCount: currentVotes + 1
+          }));
           toast.success('Vote added');
-        }
-      } else {
-        toast.error(result.message || 'Something went wrong');
-      }
-    } catch (error) {
-      toast.error('Error voting on question');
-      console.error('Vote error:', error);
+        })
+        .catch(() => {
+          toast.error('Failed to add vote');
+        });
     }
   };
   

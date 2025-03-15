@@ -1,22 +1,33 @@
-import { useSelector } from 'react-redux';
-import { Link } from 'react-router-dom';
+// Updated QuestionCard component from src/pages/Questions.jsx
 import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import Button from '../components/Button';
 import AnimatedVoteCounter from '../components/AnimatedVoteCounter';
 import Tooltip from '../components/Tooltip';
 import VoteButton from '../components/VoteButton';
 
-// Enhanced Question Card Component
 const QuestionCard = ({ question, index }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const navigate = useNavigate();
+  
+  const handleCardClick = (e) => {
+    // Don't navigate if clicking on vote button or links
+    if (e.target.closest('button') || e.target.closest('a')) {
+      return;
+    }
+    navigate(`/questions/${question.id}`);
+  };
   
   return (
     <div 
       className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md dark:shadow-gray-900/30 
-      transition-all duration-300 ${isHovered ? 'transform -translate-y-1' : ''} animate-card-appear`}
+      transition-all duration-300 ${isHovered ? 'transform -translate-y-1' : ''} animate-card-appear
+      cursor-pointer`}
       style={{ animationDelay: `${index * 0.1}s` }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={handleCardClick}
     >
       <div className="p-5 relative overflow-hidden">
         {/* Subtle gradient accent at the top */}
@@ -50,12 +61,16 @@ const QuestionCard = ({ question, index }) => {
               <VoteButton questionId={question.id} currentVotes={question.votes} />
               <AnimatedVoteCounter votes={question.votes} />
             </div>
-            <div className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <Link 
+              to={`/questions/${question.id}`} 
+              className="flex items-center hover:text-blue-600 dark:hover:text-blue-400"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
               <span>{question.comments}</span>
-            </div>
+            </Link>
           </div>
           
           <Tooltip text="More options">
@@ -63,6 +78,7 @@ const QuestionCard = ({ question, index }) => {
               className={`rounded-full p-2.5 ${isHovered ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'bg-transparent text-gray-400 dark:text-gray-500'} 
               hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400
               transition-colors duration-200`}
+              onClick={(e) => e.stopPropagation()}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />

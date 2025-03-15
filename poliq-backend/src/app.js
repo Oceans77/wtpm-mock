@@ -1,8 +1,10 @@
+// src/app.js (or your main Express app file)
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
-const morgan = require('morgan');
+const cookieParser = require('cookie-parser'); // Add this dependency
+const { connectionLogger } = require('./utils/connectionLogger');
 const apiRoutes = require('./api/routes');
 const { logger } = require('./utils/logger');
 
@@ -13,7 +15,8 @@ const app = express();
 app.use(cors());
 app.use(helmet());
 app.use(compression());
-app.use(morgan('dev'));
+app.use(cookieParser()); // Add cookie parser before the connection logger
+app.use(connectionLogger); // Add our custom connection logger
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

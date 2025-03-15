@@ -1,3 +1,4 @@
+// src/models/user.model.ts
 import { v4 as uuidv4 } from 'uuid';
 
 // This is a mock model since we haven't set up the database yet
@@ -15,6 +16,7 @@ export interface IUser {
   isActive: boolean;
   verificationStatus: string;
   accountType: string;
+  role: string; // Added role field
 }
 
 // Mock database
@@ -32,6 +34,7 @@ export class User {
   public isActive: boolean;
   public verificationStatus: string;
   public accountType: string;
+  public role: string; // Added role property
 
   constructor(data: Partial<IUser>) {
     this.id = data.id || uuidv4();
@@ -45,6 +48,7 @@ export class User {
     this.isActive = data.isActive !== undefined ? data.isActive : true;
     this.verificationStatus = data.verificationStatus || 'unverified';
     this.accountType = data.accountType || 'standard_user';
+    this.role = data.role || 'user'; // Default role is 'user'
   }
 
   static async findOne(query: Partial<IUser>): Promise<User | null> {
@@ -74,5 +78,32 @@ export class User {
     }
     
     return this;
+  }
+
+  // New method to create an admin user
+  static async createAdminUser(userData: {
+    email: string;
+    password: string;
+    username: string;
+    displayName: string;
+  }): Promise<User> {
+    // Check if user already exists
+    const existingUser = await User.findOne({ email: userData.email });
+    if (existingUser) {
+      throw new Error('User already exists with this email');
+    }
+
+    // Create new admin user
+    const adminUser = new User({
+      ...userData,
+      role: 'admin',
+      verificationStatus: 'verified', // Auto-verify admin users
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    // Save to database
+    await adminUser.save();
+    return adminUser;
   }
 }

@@ -10,6 +10,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Questions from './pages/Questions';
+import QuestionDetail from './pages/QuestionDetail'; // Added import for QuestionDetail
 import NewQuestion from './pages/NewQuestion';
 import Profile from './pages/Profile';
 import VerificationPage from './pages/Verification';
@@ -30,10 +31,10 @@ function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isAuthenticated, user } = useSelector(state => state.auth);
   
-const handleLogout = () => {
-  dispatch(logoutUser());
-  setMobileMenuOpen(false);
-};
+  const handleLogout = () => {
+    dispatch(logoutUser());
+    setMobileMenuOpen(false);
+  };
   
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
@@ -233,13 +234,15 @@ const handleLogout = () => {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/questions" element={<Questions />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        {/* Fix route order: specific routes should come before dynamic routes */}
         <Route path="/questions/new" element={
           <ProtectedRoute>
             <NewQuestion />
           </ProtectedRoute>
         } />
+        <Route path="/questions/:questionId" element={<QuestionDetail />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         <Route path="/profile" element={
           <ProtectedRoute>
             <Profile />
@@ -253,8 +256,7 @@ const handleLogout = () => {
       </Routes>
     </PageTransition>
   </div>
-</main>
-        
+</main>        
         {/* Footer */}
         <footer className="bg-gray-800 dark:bg-gray-900 text-white py-6">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
