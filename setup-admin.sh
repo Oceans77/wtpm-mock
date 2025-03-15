@@ -1,3 +1,436 @@
+#!/bin/bash
+# Script to set up admin functionality in PoliQ backend
+
+echo "Setting up admin functionality..."
+
+# Make sure we're in the project root directory
+cd "$(dirname "$0")"
+
+# Create admin directory
+mkdir -p poliq-backend/src/api/admin
+echo "Created admin directory"
+
+# Create admin controller file
+cat > poliq-backend/src/api/admin/admin.controller.js << 'EOF'
+// src/api/admin/admin.controller.js
+const { getActiveSessions, readLogs } = require('../../utils/connectionLogger');
+
+// Get active sessions
+exports.getActiveSessions = (req, res) => {
+  try {
+    const sessions = getActiveSessions();
+    
+    // Return summary stats with the sessions
+    const stats = {
+      totalSessions: sessions.length,
+      deviceBreakdown: sessions.reduce((acc, session) => {
+        acc[session.device] = (acc[session.device] || 0) + 1;
+        return acc;
+      }, {}),
+      browserBreakdown: sessions.reduce((acc, session) => {
+        acc[session.browser] = (acc[session.browser] || 0) + 1;
+        return acc;
+      }, {}),
+      countryBreakdown: sessions.reduce((acc, session) => {
+        acc[session.location.country] = (acc[session.location.country] || 0) + 1;
+        return acc;
+      }, {})
+    };
+    
+    res.json({
+      stats,
+      sessions
+    });
+  } catch (error) {
+    console.error('Error fetching active sessions:', error);
+    res.status(500).json({ error: 'Failed to fetch active sessions' });
+  }
+};
+
+// Get recent logs
+exports.getRecentLogs = (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 100;
+    const logs = readLogs(limit);
+    
+    // Group logs by type for easier analysis
+    const groupedLogs = {
+      newSessions: logs.filter(log => log.type === 'new_session'),
+      requests: logs.filter(log => log.type === 'request'),
+      responses: logs.filter(log => log.type === 'response')
+    };
+    
+    res.json({
+      total: logs.length,
+      groupedLogs
+    });
+  } catch (error) {
+    console.error('Error fetching logs:', error);
+    res.status(500).json({ error: 'Failed to fetch logs' });
+  }
+};
+
+// Get log summary
+exports.getLogSummary = (req, res) => {
+  try {
+    const logs = readLogs(1000); // Get a significant sample
+    
+    // Calculate common metrics
+    const summary = {
+      totalRequests: logs.filter(log => log.type === 'request').length,
+      uniqueIPs: new Set(logs.map(log => log.ip)).size,
+      averageResponseTime: logs.filter(log => log.type === 'response')
+        .reduce((sum, log) => sum + parseFloat(log.responseTime || 0), 0) / 
+        logs.filter(log => log.type === 'response').length || 0,
+      popularEndpoints: logs.filter(log => log.type === 'request')
+        .reduce((acc, log) => {
+          acc[log.url] = (acc[log.url] || 0) + 1;
+          return acc;
+        }, {}),
+      statusCodes: logs.filter(log => log.type === 'response')
+        .reduce((acc, log) => {
+          acc[log.statusCode] = (acc[log.statusCode] || 0) + 1;
+          return acc;
+        }, {})
+    };
+    
+    // Transform popularEndpoints into sorted array
+    const sortedEndpoints = Object.entries(summary.popularEndpoints)
+      .map(([url, count]) => ({ url, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+    
+    summary.popularEndpoints = sortedEndpoints;
+    
+    res.json(summary);
+  } catch (error) {
+    console.error('Error generating log summary:', error);
+    res.status(500).json({ error: 'Failed to generate log summary' });
+  }
+};
+EOF
+echo "Created admin controller"
+
+# Create admin routes file
+cat > poliq-backend/src/api/admin/admin.routes.js << 'EOF'
+// src/api/admin/admin.routes.js
+const express = require('express');
+const router = express.Router();
+const adminController = require('./admin.controller');
+const { auth } = require('../middlewares/auth.middleware');
+const { adminAuth } = require('../middlewares/admin.middleware');
+
+// Protect all admin routes with authentication middleware
+router.use(auth);
+router.use(adminAuth);
+
+// Connection logs routes
+router.get('/connections/active', adminController.getActiveSessions);
+router.get('/connections/logs', adminController.getRecentLogs);
+router.get('/connections/summary', adminController.getLogSummary);
+
+module.exports = router;
+EOF
+echo "Created admin routes"
+
+# Update main routes file to include admin routes
+cat > poliq-backend/src/api/routes.js << 'EOF'
+// src/api/routes.js
+const express = require('express');
+const router = express.Router();
+const authRoutes = require('./auth/auth.routes');
+const adminRoutes = require('./admin/admin.routes');
+
+// Basic route to test
+router.get('/test', (req, res) => {
+  res.json({ message: 'API is working!' });
+});
+
+// Mount auth routes
+router.use('/auth', authRoutes);
+
+// Mount admin routes
+router.use('/admin', adminRoutes);
+
+module.exports = router;
+EOF
+echo "Updated main routes file"
+
+# Enhanced connection logger
+cat > poliq-backend/src/utils/connectionLogger.js << 'EOF'
+// src/utils/connectionLogger.js
+const fs = require('fs');
+const path = require('path');
+const { format } = require('date-fns');
+const geoip = require('geoip-lite');
+const { v4: uuidv4 } = require('uuid');
+
+// Create logs directory if it doesn't exist
+const logsDir = path.join(__dirname, '../../logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
+
+// Create access log file stream
+const getLogFilePath = () => {
+  return path.join(logsDir, `access-${format(new Date(), 'yyyy-MM-dd')}.log`);
+};
+
+let accessLogStream;
+try {
+  accessLogStream = fs.createWriteStream(getLogFilePath(), { flags: 'a' });
+} catch (error) {
+  console.error('Error creating log stream:', error);
+  // Fallback to just logging to console
+  accessLogStream = {
+    write: (message) => console.log('[LOG]', message)
+  };
+}
+
+// Map to track active sessions
+const activeSessions = new Map();
+
+// Parse user agent to extract browser and device info
+const parseUserAgent = (userAgent) => {
+  if (!userAgent) return { browser: 'Unknown', device: 'Unknown' };
+  
+  let browser = 'Unknown';
+  let device = 'Unknown';
+  
+  // Very basic browser detection
+  if (userAgent.includes('Firefox/')) {
+    browser = 'Firefox';
+  } else if (userAgent.includes('Chrome/') && !userAgent.includes('Edg/')) {
+    browser = 'Chrome';
+  } else if (userAgent.includes('Safari/') && !userAgent.includes('Chrome/')) {
+    browser = 'Safari';
+  } else if (userAgent.includes('Edg/')) {
+    browser = 'Edge';
+  } else if (userAgent.includes('MSIE') || userAgent.includes('Trident/')) {
+    browser = 'Internet Explorer';
+  }
+  
+  // Basic device detection
+  if (userAgent.includes('Mobile')) {
+    device = 'Mobile';
+  } else if (userAgent.includes('Tablet')) {
+    device = 'Tablet';
+  } else {
+    device = 'Desktop';
+  }
+  
+  return { browser, device };
+};
+
+// Get location info from IP
+const getLocationInfo = (ip) => {
+  try {
+    // Skip localhost and private IPs
+    if (ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.') || ip.startsWith('10.')) {
+      return { country: 'Local', city: 'Local', region: 'Local' };
+    }
+    
+    const geo = geoip.lookup(ip);
+    if (geo) {
+      return {
+        country: geo.country || 'Unknown',
+        city: geo.city || 'Unknown',
+        region: geo.region || 'Unknown'
+      };
+    }
+  } catch (error) {
+    console.error('Error looking up location:', error);
+  }
+  
+  return { country: 'Unknown', city: 'Unknown', region: 'Unknown' };
+};
+
+// Middleware to log connections
+const connectionLogger = (req, res, next) => {
+  // Get the real IP address (handles proxies)
+  const ip = req.headers['x-forwarded-for'] || 
+             req.headers['x-real-ip'] || 
+             req.connection.remoteAddress || 
+             'Unknown';
+             
+  const cleanIp = ip.split(',')[0].trim();
+  
+  // Get or create session ID
+  let sessionId = req.cookies?.sessionId;
+  if (!sessionId) {
+    sessionId = uuidv4();
+    res.cookie('sessionId', sessionId, { 
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    });
+  }
+  
+  // Timestamp
+  const timestamp = new Date().toISOString();
+  
+  // Parse user agent
+  const userAgent = req.headers['user-agent'] || 'Unknown';
+  const { browser, device } = parseUserAgent(userAgent);
+  
+  // Get location info
+  const location = getLocationInfo(cleanIp);
+  
+  // Request details
+  const method = req.method;
+  const url = req.originalUrl || req.url;
+  const referer = req.headers.referer || req.headers.referrer || '-';
+  
+  // Track session
+  if (!activeSessions.has(sessionId)) {
+    // New session
+    activeSessions.set(sessionId, {
+      id: sessionId, // Add ID field so we can use it as a key in React
+      ip: cleanIp,
+      firstSeen: timestamp,
+      lastSeen: timestamp,
+      browser,
+      device,
+      location,
+      requestCount: 1
+    });
+    
+    // Log new session
+    const newSessionLog = {
+      type: 'new_session',
+      timestamp,
+      sessionId,
+      ip: cleanIp,
+      browser,
+      device,
+      location,
+      referer
+    };
+    
+    accessLogStream.write(JSON.stringify(newSessionLog) + '\n');
+    console.log(`[NEW SESSION] ${timestamp} - ${cleanIp} - ${browser} on ${device} - ${location.country}, ${location.city}`);
+  } else {
+    // Update existing session
+    const session = activeSessions.get(sessionId);
+    session.lastSeen = timestamp;
+    session.requestCount++;
+    activeSessions.set(sessionId, session);
+  }
+  
+  // Log every request
+  const requestLog = {
+    type: 'request',
+    timestamp,
+    sessionId,
+    ip: cleanIp,
+    method,
+    url,
+    browser,
+    device,
+    referer
+  };
+  
+  accessLogStream.write(JSON.stringify(requestLog) + '\n');
+  
+  // Start time for measuring response time
+  const startTime = process.hrtime();
+  
+  // When response finishes
+  res.on('finish', () => {
+    const duration = process.hrtime(startTime);
+    const responseTimeMs = (duration[0] * 1000 + duration[1] / 1000000).toFixed(2);
+    
+    // Log response
+    const responseLog = {
+      type: 'response',
+      timestamp: new Date().toISOString(),
+      sessionId,
+      ip: cleanIp,
+      url,
+      statusCode: res.statusCode,
+      responseTime: responseTimeMs
+    };
+    
+    accessLogStream.write(JSON.stringify(responseLog) + '\n');
+  });
+  
+  // Clean up old sessions every hour
+  if (Math.random() < 0.01) { // Only do cleanup occasionally (1% of requests)
+    cleanupOldSessions();
+  }
+  
+  next();
+};
+
+// Clean up sessions older than 24 hours
+const cleanupOldSessions = () => {
+  const now = new Date();
+  const oldSessionThreshold = 24 * 60 * 60 * 1000; // 24 hours in ms
+  
+  for (const [id, session] of activeSessions.entries()) {
+    const lastSeenDate = new Date(session.lastSeen);
+    if (now - lastSeenDate > oldSessionThreshold) {
+      activeSessions.delete(id);
+    }
+  }
+};
+
+// Function to get active sessions (for admin dashboard)
+const getActiveSessions = () => {
+  return Array.from(activeSessions.entries()).map(([id, session]) => ({
+    id,
+    ...session,
+    durationMinutes: Math.round((new Date() - new Date(session.firstSeen)) / 60000)
+  }));
+};
+
+// Utility function to get current day's log file
+const getCurrentLogFile = () => {
+  return getLogFilePath();
+};
+
+// Function to read log file lines
+const readLogs = (limit = 100) => {
+  try {
+    const logFile = getCurrentLogFile();
+    if (!fs.existsSync(logFile)) {
+      return [];
+    }
+    
+    const fileContent = fs.readFileSync(logFile, 'utf8');
+    const lines = fileContent.split('\n').filter(line => line.trim() !== '');
+    
+    // Get the most recent logs up to the limit
+    return lines.slice(-limit).map(line => {
+      try {
+        return JSON.parse(line);
+      } catch (e) {
+        return { error: 'Invalid log entry', raw: line };
+      }
+    });
+  } catch (error) {
+    console.error('Error reading logs:', error);
+    return [];
+  }
+};
+
+module.exports = {
+  connectionLogger,
+  getActiveSessions,
+  readLogs
+};
+EOF
+echo "Enhanced the connection logger"
+
+# Create environment file for frontend
+mkdir -p poliq-frontend
+cat > poliq-frontend/.env.local << 'EOF'
+VITE_API_URL=http://localhost:3000/api
+EOF
+echo "Created frontend environment file"
+
+# Copy fixed AdminDashboard.jsx file
+mkdir -p poliq-frontend/src/pages
+cat > poliq-frontend/src/pages/AdminDashboard.jsx << 'EOF'
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { Navigate } from 'react-router-dom';
@@ -154,33 +587,15 @@ const AdminDashboard = () => {
   const [logFilter, setLogFilter] = useState(null);
   const { isAuthenticated, user, token } = useSelector(state => state.auth);
   
-// Create axios instance with authentication header
-const api = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  },
-  // withCredentials: true // This is important for CORS with credentials
-});
-
-// Add request interceptor for debugging
-api.interceptors.request.use(config => {
-  console.log("API Request:", config.url, config.headers);
-  return config;
-}, error => {
-  console.error("API Request Error:", error);
-  return Promise.reject(error);
-});
-
-// Add response interceptor for debugging
-api.interceptors.response.use(response => {
-  console.log("API Response:", response.status, response.config.url);
-  return response;
-}, error => {
-  console.error("API Response Error:", error.response || error);
-  return Promise.reject(error);
-});  
+  // Create axios instance with authentication header
+  const api = axios.create({
+    baseURL: API_URL,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  
   // Function to fetch all admin data (active sessions, logs, summary)
   const fetchAdminData = async () => {
     setLoading(true);
@@ -344,18 +759,7 @@ api.interceptors.response.use(response => {
     setActiveSessions(mockSessions);
     setLogs(mockLogs);
     setSummary(mockSummary);
-    try {
-  toast("Using mock data - connect your backend for real data", {
-    icon: '??',
-    style: {
-      background: '#3B82F6',
-      color: '#FFFFFF',
-      fontWeight: 500,
-    },
-  });
-} catch (err) {
-  console.log("Toast notification failed:", err);
-}
+    toast.info("Using mock data - connect your backend for real data");
   };
   
   // Fetch data on component mount and when user or token changes
@@ -715,3 +1119,23 @@ api.interceptors.response.use(response => {
 };
 
 export default AdminDashboard;
+EOF
+echo "Created AdminDashboard.jsx file"
+
+# Create logs directory for backend
+mkdir -p poliq-backend/logs
+touch poliq-backend/logs/access-$(date +%Y-%m-%d).log
+echo "Created logs directory and access log file"
+
+echo "Setup complete!"
+echo "To activate, run the following commands:"
+echo "1. Install dependencies (if needed):"
+echo "   cd poliq-backend && npm install"
+echo ""
+echo "2. Start the backend server:"
+echo "   cd poliq-backend && npm run dev"
+echo ""
+echo "3. Start the frontend app:"
+echo "   cd poliq-frontend && npm run dev"
+echo ""
+echo "Then login as admin (admin@poliq.com / admin123!) and navigate to the admin dashboard"

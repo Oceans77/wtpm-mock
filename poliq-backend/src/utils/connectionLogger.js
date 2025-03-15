@@ -12,10 +12,20 @@ if (!fs.existsSync(logsDir)) {
 }
 
 // Create access log file stream
-const accessLogStream = fs.createWriteStream(
-  path.join(logsDir, `access-${format(new Date(), 'yyyy-MM-dd')}.log`),
-  { flags: 'a' }
-);
+const getLogFilePath = () => {
+  return path.join(logsDir, `access-${format(new Date(), 'yyyy-MM-dd')}.log`);
+};
+
+let accessLogStream;
+try {
+  accessLogStream = fs.createWriteStream(getLogFilePath(), { flags: 'a' });
+} catch (error) {
+  console.error('Error creating log stream:', error);
+  // Fallback to just logging to console
+  accessLogStream = {
+    write: (message) => console.log('[LOG]', message)
+  };
+}
 
 // Map to track active sessions
 const activeSessions = new Map();
@@ -114,6 +124,7 @@ const connectionLogger = (req, res, next) => {
   if (!activeSessions.has(sessionId)) {
     // New session
     activeSessions.set(sessionId, {
+      id: sessionId, // Add ID field so we can use it as a key in React
       ip: cleanIp,
       firstSeen: timestamp,
       lastSeen: timestamp,
@@ -182,9 +193,25 @@ const connectionLogger = (req, res, next) => {
     accessLogStream.write(JSON.stringify(responseLog) + '\n');
   });
   
-  // Clean up old sessions every hour (not implemented here to avoid memory leaks)
+  // Clean up old sessions every hour
+  if (Math.random() < 0.01) { // Only do cleanup occasionally (1% of requests)
+    cleanupOldSessions();
+  }
   
   next();
+};
+
+// Clean up sessions older than 24 hours
+const cleanupOldSessions = () => {
+  const now = new Date();
+  const oldSessionThreshold = 24 * 60 * 60 * 1000; // 24 hours in ms
+  
+  for (const [id, session] of activeSessions.entries()) {
+    const lastSeenDate = new Date(session.lastSeen);
+    if (now - lastSeenDate > oldSessionThreshold) {
+      activeSessions.delete(id);
+    }
+  }
 };
 
 // Function to get active sessions (for admin dashboard)
@@ -198,7 +225,7 @@ const getActiveSessions = () => {
 
 // Utility function to get current day's log file
 const getCurrentLogFile = () => {
-  return path.join(logsDir, `access-${format(new Date(), 'yyyy-MM-dd')}.log`);
+  return getLogFilePath();
 };
 
 // Function to read log file lines
