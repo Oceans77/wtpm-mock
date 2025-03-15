@@ -1,4 +1,4 @@
-// src/store/index.js
+// src/store/index.js - Fixed version
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './authSlice';
 import questionsReducer from './questionsSlice';
@@ -11,3 +11,5 @@ export const store = configureStore({
     votes: votesReducer
   }
 });
+
+export default store;

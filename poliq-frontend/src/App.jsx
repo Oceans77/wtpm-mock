@@ -10,10 +10,13 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Questions from './pages/Questions';
-import QuestionDetail from './pages/QuestionDetail'; // Added import for QuestionDetail
+import QuestionDetail from './pages/QuestionDetail';
 import NewQuestion from './pages/NewQuestion';
 import Profile from './pages/Profile';
 import VerificationPage from './pages/Verification';
+// Lazy load AdminDashboard to prevent issues if the component has errors
+import { lazy, Suspense } from 'react';
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -21,6 +24,21 @@ const ProtectedRoute = ({ children }) => {
   
   if (!isAuthenticated) {
     return <Navigate to="/login" />;
+  }
+  
+  return children;
+};
+
+// Admin route component - ensures the user is both authenticated and has admin role
+const AdminRoute = ({ children }) => {
+  const { isAuthenticated, user } = useSelector(state => state.auth);
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+  
+  if (!user || user.role !== 'admin') {
+    return <Navigate to="/" />;
   }
   
   return children;
@@ -85,6 +103,12 @@ function App() {
                       <Link to="/verification" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
                         Verification
                       </Link>
+                      {/* Add admin dashboard link for admin users */}
+                      {user?.role === 'admin' && (
+                        <Link to="/admin" className="block px-4 py-2 text-sm text-indigo-700 dark:text-indigo-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
+                          Admin Dashboard
+                        </Link>
+                      )}
                       <button
                         onClick={handleLogout}
                         className="block w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -197,6 +221,16 @@ function App() {
                     >
                       Verification
                     </Link>
+                    {/* Add admin dashboard link for mobile admin users */}
+                    {user?.role === 'admin' && (
+                      <Link 
+                        to="/admin" 
+                        className="block px-4 py-2 text-indigo-700 dark:text-indigo-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        Admin Dashboard
+                      </Link>
+                    )}
                     <button
                       onClick={handleLogout}
                       className="block w-full text-left px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -227,36 +261,44 @@ function App() {
           </div>
         </nav>
         
-{/* Content */}
-<main className="flex-grow">
-  <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-    <PageTransition>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/questions" element={<Questions />} />
-        {/* Fix route order: specific routes should come before dynamic routes */}
-        <Route path="/questions/new" element={
-          <ProtectedRoute>
-            <NewQuestion />
-          </ProtectedRoute>
-        } />
-        <Route path="/questions/:questionId" element={<QuestionDetail />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/profile" element={
-          <ProtectedRoute>
-            <Profile />
-          </ProtectedRoute>
-        } />
-        <Route path="/verification" element={
-          <ProtectedRoute>
-            <VerificationPage />
-          </ProtectedRoute>
-        } />
-      </Routes>
-    </PageTransition>
-  </div>
-</main>        
+        {/* Content */}
+        <main className="flex-grow">
+          <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+            <PageTransition>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/questions" element={<Questions />} />
+                {/* Fix route order: specific routes should come before dynamic routes */}
+                <Route path="/questions/new" element={
+                  <ProtectedRoute>
+                    <NewQuestion />
+                  </ProtectedRoute>
+                } />
+                <Route path="/questions/:questionId" element={<QuestionDetail />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/profile" element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                } />
+                <Route path="/verification" element={
+                  <ProtectedRoute>
+                    <VerificationPage />
+                  </ProtectedRoute>
+                } />
+                {/* Add the admin dashboard route with Suspense fallback */}
+                <Route path="/admin" element={
+                  <AdminRoute>
+                    <Suspense fallback={<div className="text-center py-10">Loading Admin Dashboard...</div>}>
+                      <AdminDashboard />
+                    </Suspense>
+                  </AdminRoute>
+                } />
+              </Routes>
+            </PageTransition>
+          </div>
+        </main>        
         {/* Footer */}
         <footer className="bg-gray-800 dark:bg-gray-900 text-white py-6">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">

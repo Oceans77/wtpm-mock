@@ -1,7 +1,8 @@
+// Updated src/pages/Login.jsx
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
-import { setUser, setLoading, setError } from '../store/authSlice';
+import { loginUser } from '../store/authSlice';
 import { toast } from 'react-hot-toast';
 
 const Login = () => {
@@ -20,21 +21,30 @@ const Login = () => {
       return;
     }
     
-    dispatch(setLoading(true));
-    
-    // Simulate API call for now
-    setTimeout(() => {
-      // For demo, just simulate a successful login
-      dispatch(setUser({
-        id: '1',
-        email,
-        username: email.split('@')[0],
-        displayName: email.split('@')[0],
-        verificationStatus: 'unverified'
-      }));
-      toast.success('Login successful');
-      navigate('/');
-    }, 1000);
+    try {
+      // Use the enhanced login thunk action
+      const result = await dispatch(loginUser({ email, password }));
+      
+      if (result.success) {
+        toast.success('Login successful');
+        
+        // Check if user is admin and redirect to admin dashboard if they are
+        const state = dispatch.getState(); // get the current state
+        const user = state.auth.user;
+        
+        if (user?.role === 'admin') {
+          navigate('/admin');
+        } else {
+          navigate('/');
+        }
+      } else {
+        // Error is already handled by the thunk and set in the state
+        toast.error(error || 'Login failed');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      toast.error('An error occurred during login');
+    }
   };
   
   return (
@@ -89,6 +99,13 @@ const Login = () => {
           Register here
         </Link>
       </p>
+      
+      {/* Add admin login hint for the demo */}
+      <div className="mt-8 p-3 bg-gray-100 dark:bg-gray-700 rounded text-sm">
+        <p className="font-medium mb-1 text-gray-700 dark:text-gray-300">Demo Admin Login:</p>
+        <p className="text-gray-600 dark:text-gray-400">Email: admin@poliq.com</p>
+        <p className="text-gray-600 dark:text-gray-400">Password: admin123!</p>
+      </div>
     </div>
   );
 };
